@@ -21,7 +21,6 @@ namespace CacheService.Controllers
         }
 
         [HttpGet]
-        [Route("GetAll")]
         public string Get([FromQuery] string store, [FromQuery] string key)
         {
             return _sharedCacheService.Get(store, key);
@@ -35,35 +34,34 @@ namespace CacheService.Controllers
         }
 
         [HttpGet]
-        [Route("GetAll")]
+        [Route("GetByKeys")]
         public IEnumerable<string> GetByKeys([FromQuery] string store, [FromQuery] string[] keys)
         {
             return _sharedCacheService.GetByKeys(store, keys);
         }
 
         [HttpGet]
-        [Route("GetAll")]
+        [Route("GetStoreNames")]
         public IEnumerable<string> GetStoreNames()
         {
             return _sharedCacheService.GetStoreNames();
         }
 
         [HttpDelete]
-        [Route("GetAll")]
         public void Remove([FromQuery] string store, [FromQuery] string key)
         {
             _sharedCacheService.Remove(store, key);
         }
 
         [HttpDelete]
-        [Route("GetAll")]
+        [Route("ClearStore")]
         public void Clear([FromQuery] string store)
         {
             _sharedCacheService.Clear(store);
         }
 
         [HttpDelete]
-        [Route("GetAll")]
+        [Route("ClearAll")]
         public void Clear()
         {
             _sharedCacheService.Clear();
