@@ -1,6 +1,6 @@
 ﻿namespace CacheService.Services
 {
-    internal interface IRedisCacheService : ISharedCacheService
+    public interface IRedisCacheService : ISharedCacheService
     {
     }
 }

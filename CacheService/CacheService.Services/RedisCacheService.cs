@@ -1,45 +1,164 @@
-﻿namespace CacheService.Services
+﻿using Microsoft.Extensions.Caching.Distributed;
+using System.Linq;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Text.Json;
+using System.Text;
+
+namespace CacheService.Services
 {
-    internal class RedisCacheService : IRedisCacheService
+    public class RedisCacheService : IRedisCacheService
     {
-        public void Add(string store, string key, string value)
+        private readonly IDistributedCache _cache;
+        private const string _storeKeys = "storesKeys";
+        public RedisCacheService(IDistributedCache cache)
         {
-            throw new NotImplementedException();
+            _cache = cache;
+        }
+        public async Task Add(string store, string key, string value)
+        {
+            await Task.Run(() =>
+            {
+                if (_cache.Get(_storeKeys) != null)
+                {
+                    var val = _cache.Get(_storeKeys);
+                    Dictionary<string, string> valuesDict = JsonSerializer.Deserialize<Dictionary<string, string>>(val);
+                    if (!valuesDict.ContainsKey(store))
+                    {
+                        valuesDict.Add(store, key);
+                        var storeBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(valuesDict));
+                        _cache.Set(_storeKeys, storeBytes);
+                    }
+                }
+                else
+                {
+                    var stores = new Dictionary<string, string>();
+                    stores.Add(store, key);
+                    var storeBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(stores));
+                    _cache.Set(_storeKeys, storeBytes);
+                }
+
+                if (_cache.Get(store) == null)
+                {
+                    var valuesDict = new Dictionary<string, string>();
+                    valuesDict.Add(key, value);
+                    var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(valuesDict));
+                    _cache.Set(store, bytes);
+                }
+                else
+                {
+                    var val = _cache.Get(store);
+                    Dictionary<string, string> valuesDict = JsonSerializer.Deserialize<Dictionary<string, string>>(val);
+                    valuesDict.Add(key, value);
+                    var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(valuesDict));
+                    _cache.Set(store, bytes);
+                }
+
+            });
         }
 
-        public void Clear()
+        public async Task Clear()
         {
-            throw new NotImplementedException();
+            await Task.Run(() => {
+                var keysValues = _cache.Get(_storeKeys);
+                Dictionary<string, string> valuesDict = JsonSerializer.Deserialize<Dictionary<string, string>>(keysValues);
+                foreach (var key in valuesDict.Keys)
+                {
+                    _cache.Remove(key);
+                }
+                _cache.Remove(_storeKeys);
+            });
         }
 
-        public void Clear(string store)
+        public async Task Clear(string store)
         {
-            throw new NotImplementedException();
+            await Task.Run(() => {
+                _cache.Remove(store);
+                var val = _cache.Get(_storeKeys);
+                Dictionary<string, string> valuesDict = JsonSerializer.Deserialize<Dictionary<string, string>>(val);
+                valuesDict.Remove(store);
+                var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(valuesDict));
+                _cache.Set(_storeKeys, bytes);
+            });
         }
 
-        public string Get(string store, string key)
+        public async Task<string> Get(string store, string key)
         {
-            throw new NotImplementedException();
+            var value = await Task.Run(() => {
+                if (_cache.Get(store) != null)
+                {
+                    var cacheStore = _cache.Get(store);
+                    Dictionary<string, string> valuesDict = JsonSerializer.Deserialize<Dictionary<string, string>>(cacheStore);
+                    var valueByKey = valuesDict.TryGetValue(key, out string value);
+                    return value;
+                }
+                return null;
+            });
+           return value;
         }
 
-        public IEnumerable<string> GetAll(string store)
+        public async Task<IEnumerable<string>> GetAll(string store)
         {
-            throw new NotImplementedException();
+            var values = await Task.Run(() => {
+                var val = _cache.Get(store);
+                Dictionary<string, string> valuesDict = JsonSerializer.Deserialize<Dictionary<string, string>>(val);
+                var storeValues = valuesDict?.Select(x => x.Value)
+                        .Where(val => val != null)
+                        .Cast<string>()
+                        .ToArray();
+                return storeValues;
+            });
+            return values;
         }
 
-        public IEnumerable<string> GetByKeys(string store, string[] keys)
+        public async Task<IEnumerable<string>> GetByKeys(string store, string[] keys)
         {
-            throw new NotImplementedException();
+            var values = await Task.Run(() =>
+            {
+                if (_cache.Get(store) != null)
+                {
+                    List<string> values = new List<string>();
+                    var cacheStore = _cache.Get(store);
+                    Dictionary<string, string> valuesDict = JsonSerializer.Deserialize<Dictionary<string, string>>(cacheStore);
+                    for (var i = 0; i < keys.Length; i++)
+                    {
+                        if (valuesDict.ContainsKey(keys[i]))
+                        {
+                            values.Add(valuesDict[keys[i]]);
+                        }
+                    }
+                    return values;
+                }
+                return Enumerable.Empty<string>();
+            });
+            return values;
         }
 
-        public IEnumerable<string> GetStoreNames()
+        public async Task<IEnumerable<string>> GetStoreNames()
         {
-            throw new NotImplementedException();
+            var keys = await Task.Run(() => {
+                var cacheStore = _cache.Get(_storeKeys);
+                Dictionary<string, string> cacheValuesDict = JsonSerializer.Deserialize<Dictionary<string, string>>(cacheStore);
+                return cacheValuesDict.Keys;
+            });
+            return keys;
+            
         }
 
-        public void Remove(string store, string key)
+        public async Task Remove(string store, string key)
         {
-            throw new NotImplementedException();
+            await Task.Run(() => {
+                if (_cache.Get(store) != null)
+                {
+                    var cacheStore = _cache.Get(store);
+                    Dictionary<string, string> cacheValuesDict = JsonSerializer.Deserialize<Dictionary<string, string>>(cacheStore);
+                    cacheValuesDict.Remove(key);
+                    var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(cacheValuesDict));
+                    _cache.Set(store, bytes);
+                }
+            });
+           
         }
+
+   
     }
 }
