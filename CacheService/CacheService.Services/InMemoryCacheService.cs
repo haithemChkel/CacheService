@@ -1,81 +1,136 @@
-﻿using System.Collections.Concurrent;
-using System.Runtime.Caching;
+﻿using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Concurrent;
 
 namespace CacheService.Services
 {
     public class InMemoryCacheService : IInMemoryCacheService
     {
         private readonly ConcurrentDictionary<string, MemoryCache> _caches = new ConcurrentDictionary<string, MemoryCache>();
-
-        public void Add(string store, string key, string value)
+        private readonly ConcurrentDictionary<string, string> _keysDict = new ConcurrentDictionary<string, string>();
+        public async Task Add(string store, string key, string value)
         {
-            var storeCache = _caches.GetOrAdd(store, new MemoryCache(store));
-            storeCache.Set(key, value, null);
-        }
-
-        public void Clear()
-        {
-            foreach (var cache in _caches.Values)
+            await Task.Run(() =>
             {
-                cache.Dispose();
-            }
-            _caches.Clear();
+                var cacheEntryOptions = new MemoryCacheOptions();
+                var storeCache = _caches.GetOrAdd(store, new MemoryCache(cacheEntryOptions));
+                storeCache.Set(key, value, new MemoryCacheEntryOptions());
+                if (!_keysDict.ContainsKey(key))
+                {
+                    _keysDict.TryAdd(key, store);
+                }
+            });
         }
 
-        public void Clear(string store)
+        public async Task Clear()
         {
-            if (_caches.TryGetValue(store, out var cacheStore))
+            await Task.Run(() =>
             {
-                cacheStore.Dispose();
-                _caches.TryRemove(store, out cacheStore);
-            }
+                foreach (var cache in _caches.Values)
+                {
+                    cache.Dispose();
+                }
+                _keysDict.Clear();
+                _caches.Clear();
+            });
         }
 
-        public string Get(string store, string key)
+        public async Task Clear(string store)
         {
-            if (_caches.TryGetValue(store, out var cacheStore))
+            await Task.Run(() =>
             {
-                var value = cacheStore.Get(key);
-                return (string)value;
-            }
-            return null;
+                if (_caches.TryGetValue(store, out var cacheStore))
+                {
+                    foreach (var key in _keysDict.Keys)
+                    {
+                        var ifKeyExists = _keysDict.TryGetValue(key, out string storeOfTheKey);
+                        if (ifKeyExists && store == storeOfTheKey)
+                        {
+                            _keysDict.Remove(key, out string value);
+                        }
+                    }
+                    cacheStore.Dispose();
+                    _caches.TryRemove(store, out cacheStore);
+                }
+            });
         }
 
-        public IEnumerable<string> GetAll(string store)
+        public async Task<string> Get(string store, string key)
         {
-            if (_caches.TryGetValue(store, out var cacheStore))
+            var value = await Task.Run(() =>
             {
-                var values = cacheStore
-                    .Select(x => x.Value)
-                    .Where(val => val != null)
-                    .Cast<string>()
-                    .ToArray();
-                return values;
-            }
-            return Enumerable.Empty<string>();
+                if (_caches.TryGetValue(store, out var cacheStore))
+                {
+                    var value = cacheStore.Get(key);
+                    return (string)value;
+                }
+                return null;
+            });
+            return value;
         }
 
-        public IEnumerable<string> GetByKeys(string store, string[] keys)
+        public async Task<IEnumerable<string>> GetAll(string store)
         {
-            if (_caches.TryGetValue(store, out var cacheStore))
+            var values = await Task.Run(() => {
+                if (_caches.TryGetValue(store, out var cacheStore))
+                {
+                    var values = new List<string>();
+                    foreach (var item in _keysDict.Keys)
+                    {
+                        if (cacheStore.TryGetValue(item, out string value))
+                        {
+                            values.Add(value);
+                        }
+                    }
+                    return values;
+                }
+                return Enumerable.Empty<string>();
+            });
+            return values;
+        }
+
+        public async Task<IEnumerable<string>> GetByKeys(string store, string[] keys)
+        {
+            var values = await Task.Run(() =>
             {
-                var values = cacheStore.GetValues(keys).Values.Cast<string>();
-                return values;
-            }
-            return Enumerable.Empty<string>();
+                if (_caches.TryGetValue(store, out var cacheStore))
+                {
+                    var values = new List<string>();
+                    for (int i = 0; i < keys.Length; i++)
+                    {
+                        if (cacheStore.TryGetValue(keys[i], out string value))
+                        {
+                            values.Add(value);
+                        }
+                    }
+                    return values;
+                }
+                return Enumerable.Empty<string>();
+            });
+            return values;
         }
 
-        public IEnumerable<string> GetStoreNames()
+        public async Task<IEnumerable<string>> GetStoreNames()
         {
-            return _caches.Keys;
+            var stores = await Task.Run(() => {
+                return _caches.Keys;
+            });
+            return stores;
+            
         }
 
-        public void Remove(string store, string key)
+        public async Task Remove(string store, string key)
         {
-            if (_caches.TryGetValue(store, out var cacheStore))
-            {
-                cacheStore.Remove(key);
-            }
+            await Task.Run(() => {
+                if (_caches.TryGetValue(store, out var cacheStore))
+                {
+                    cacheStore.Remove(key);
+                    var ifKeyExist = _keysDict.TryGetValue(key, out string storeOfTheKey);
+                    if (ifKeyExist && store == storeOfTheKey)
+                    {
+                        _keysDict.Remove(key, out string value);
+                    }
+                }
+            });
         }
     }
 }

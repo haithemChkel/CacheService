@@ -8,41 +8,45 @@ namespace CacheService.Controllers
     public class SharedCacheController : ControllerBase //,ISharedCacheService
     {
         private readonly ISharedCacheService _sharedCacheService;
+        private readonly ILogger<ISharedCacheService> _logger;
 
-        public SharedCacheController(ISharedCacheService sharedCacheService)
+        public SharedCacheController(ISharedCacheService sharedCacheService, ILogger<ISharedCacheService> logger)
         {
             _sharedCacheService = sharedCacheService;
+            _logger = logger;   
         }
 
         [HttpPost]
         public void Add([FromQuery] string store, [FromQuery] string key, [FromBody] string value)
         {
+            _logger.LogInformation($"store : {store}");
             _sharedCacheService.Add(store, key, value);
         }
 
         [HttpGet]
-        public string Get([FromQuery] string store, [FromQuery] string key)
+        public Task<string> Get([FromQuery] string store, [FromQuery] string key)
         {
+            _logger.LogInformation($"store : {store}");
             return _sharedCacheService.Get(store, key);
         }
 
         [HttpGet]
         [Route("GetAll")]
-        public IEnumerable<string> GetAll([FromQuery] string store)
+        public Task<IEnumerable<string>> GetAll([FromQuery] string store)
         {
             return _sharedCacheService.GetAll(store);
         }
 
         [HttpGet]
         [Route("GetByKeys")]
-        public IEnumerable<string> GetByKeys([FromQuery] string store, [FromQuery] string[] keys)
+        public Task<IEnumerable<string>> GetByKeys([FromQuery] string store, [FromQuery] string[] keys)
         {
             return _sharedCacheService.GetByKeys(store, keys);
         }
 
         [HttpGet]
         [Route("GetStoreNames")]
-        public IEnumerable<string> GetStoreNames()
+        public Task<IEnumerable<string>> GetStoreNames()
         {
             return _sharedCacheService.GetStoreNames();
         }

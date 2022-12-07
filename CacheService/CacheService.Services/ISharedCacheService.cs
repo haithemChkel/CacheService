@@ -2,13 +2,13 @@
 {
     public interface ISharedCacheService
     {
-        IEnumerable<string> GetStoreNames();
-        IEnumerable<string> GetAll(string store);
-        IEnumerable<string> GetByKeys(string store, string[] keys);
-        string Get(string store, string key);
-        void Add(string store, string key, string value);
-        void Remove(string store, string key);
-        void Clear(string store);
-        void Clear();
+        Task<IEnumerable<string>> GetStoreNames();
+        Task<IEnumerable<string>> GetAll(string store);
+        Task<IEnumerable<string>> GetByKeys(string store, string[] keys);
+        Task<string> Get(string store, string key);
+        Task Add(string store, string key, string value);
+        Task Remove(string store, string key);
+        Task Clear(string store);
+        Task Clear();
     }
 }
