@@ -23,11 +23,11 @@ namespace CacheService.Services
 
         public async Task AddMany(string store, Dictionary<string, string> keyValues)
         {
-            await Task.Run(() =>
+            await Task.Run(async () =>
             {
                 foreach (var key in keyValues.Keys)
                 {
-                    Add(store, key, keyValues[key]);
+                    await Add(store, key, keyValues[key]);
                 }
             });
         }
@@ -81,7 +81,8 @@ namespace CacheService.Services
 
         public async Task<IEnumerable<string>> GetAll(string store)
         {
-            var values = await Task.Run(() => {
+            var values = await Task.Run(() =>
+            {
                 if (_caches.TryGetValue(store, out var cacheStore))
                 {
                     var values = new List<string>();
@@ -122,16 +123,18 @@ namespace CacheService.Services
 
         public async Task<IEnumerable<string>> GetStoreNames()
         {
-            var stores = await Task.Run(() => {
+            var stores = await Task.Run(() =>
+            {
                 return _caches.Keys;
             });
             return stores;
-            
+
         }
 
         public async Task Remove(string store, string key)
         {
-            await Task.Run(() => {
+            await Task.Run(() =>
+            {
                 if (_caches.TryGetValue(store, out var cacheStore))
                 {
                     cacheStore.Remove(key);
