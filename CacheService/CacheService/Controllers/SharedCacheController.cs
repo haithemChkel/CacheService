@@ -22,6 +22,12 @@ namespace CacheService.Controllers
             _logger.LogInformation($"store : {store}");
             _sharedCacheService.Add(store, key, value);
         }
+        [HttpPost]
+        [Route("AddMany")]
+        public void AddMany([FromQuery] string store, [FromBody] Dictionary<string,string> keyValues)
+        {
+            _sharedCacheService.AddMany(store, keyValues);
+        }
 
         [HttpGet]
         public Task<string> Get([FromQuery] string store, [FromQuery] string key)

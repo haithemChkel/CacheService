@@ -21,6 +21,17 @@ namespace CacheService.Services
             });
         }
 
+        public async Task AddMany(string store, Dictionary<string, string> keyValues)
+        {
+            await Task.Run(() =>
+            {
+                foreach (var key in keyValues.Keys)
+                {
+                    Add(store, key, keyValues[key]);
+                }
+            });
+        }
+
         public async Task Clear()
         {
             await Task.Run(() =>
